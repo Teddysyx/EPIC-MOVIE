@@ -1,0 +1,180 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Helvetica Neue', Arial, sans-serif;
+    background-color: #141414;
+    color: white;
+    line-height: 1.6;
+}
+
+.navbar {
+    position: fixed;
+    top: 0;
+    width: 100%;
+    background: linear-gradient(to bottom, rgba(0,0,0,0.7) 10%, transparent);
+    z-index: 1000;
+    padding: 1rem 0;
+}
+
+.nav-container {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 2rem;
+}
+
+.nav-logo {
+    font-size: 1.8rem;
+    font-weight: bold;
+    color: #e50914;
+}
+
+.nav-menu {
+    display: flex;
+    gap: 2rem;
+}
+
+.nav-link {
+    color: white;
+    text-decoration: none;
+    font-size: 0.9rem;
+    transition: color 0.3s;
+}
+
+.nav-link:hover {
+    color: #b3b3b3;
+}
+
+.hero {
+    height: 70vh;
+    background: linear-gradient(rgba(0,0,0,0.4), rgba(0,0,0,0.4)), 
+                url('https://via.placeholder.com/1920x600/333333/666666?text=EPIC+MOVIE');
+    background-size: cover;
+    background-position: center;
+    display: flex;
+    align-items: center;
+    padding: 0 2rem;
+}
+
+.hero-content {
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.hero h1 {
+    font-size: 3rem;
+    margin-bottom: 1rem;
+    color: #e50914;
+}
+
+.hero p {
+    font-size: 1.2rem;
+    color: #b3b3b3;
+}
+
+.categories {
+    padding: 2rem;
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.category {
+    margin-bottom: 3rem;
+}
+
+.category h2 {
+    font-size: 1.5rem;
+    margin-bottom: 1rem;
+    color: white;
+}
+
+.channel-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 1rem;
+}
+
+.channel-item {
+    background-color: #2f2f2f;
+    border-radius: 8px;
+    overflow: hidden;
+    transition: transform 0.3s, box-shadow 0.3s;
+    cursor: pointer;
+}
+
+.channel-item:hover {
+    transform: scale(1.05);
+    box-shadow: 0 8px 25px rgba(229, 9, 20, 0.3);
+}
+
+.channel-logo {
+    width: 100%;
+    height: 120px;
+    object-fit: cover;
+    background-color: #1a1a1a;
+}
+
+.channel-name {
+    padding: 1rem;
+    text-align: center;
+    font-size: 0.9rem;
+}
+
+.video-player-hidden {
+    display: none;
+}
+
+.video-player-visible {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.95);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 2000;
+}
+
+.video-container {
+    width: 90%;
+    max-width: 800px;
+    position: relative;
+}
+
+#video {
+    width: 100%;
+    height: auto;
+    border-radius: 8px;
+}
+
+.close-btn {
+    position: absolute;
+    top: -40px;
+    right: 0;
+    background: #e50914;
+    color: white;
+    border: none;
+    padding: 0.5rem 1rem;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.loading {
+    text-align: center;
+    padding: 2rem;
+    color: #b3b3b3;
+}
+
+.error {
+    text-align: center;
+    padding: 2rem;
+    color: #e50914;
+}
