@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EPIC MOVIE</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="nav-container">
+            <div class="nav-logo">EPIC MOVIE</div>
+            <div class="nav-menu">
+                <a href="#" class="nav-link">Domů</a>
+                <a href="#" class="nav-link">Filmy</a>
+                <a href="#" class="nav-link">Seriály</a>
+            </div>
+            <div class="search-container">
+                <input type="text" id="search-input" placeholder="Hledat filmy..." class="search-input">
+            </div>
+        </div>
+    </nav>
+
+    <main>
+        <section class="hero">
+            <div class="hero-content">
+                <h1>EPIC MOVIE</h1>
+                <p>Nejlepší filmy a seriály na jednom místě</p>
+            </div>
+        </section>
+
+        <section class="categories">
+            <div id="category-container"></div>
+        </section>
+
+        <div id="video-player" class="video-player-hidden">
+            <div class="video-container">
+                <video id="video" controls></video>
+                <button onclick="hidePlayer()" class="close-btn">✕ Zavřít</button>
+            </div>
+        </div>
+    </main>
+
+    <script src="script.js"></script>
+</body>
+</html>
