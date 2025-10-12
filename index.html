@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EPIC MOVIE</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="nav-container">
+            <div class="nav-logo">EPIC MOVIE</div>
+            <div class="nav-menu">
+                <a href="#" class="nav-link">Domů</a>
+                <a href="#" class="nav-link">Pořady</a>
+                <a href="#" class="nav-link">Filmy</a>
+            </div>
+        </div>
+    </nav>
+
+    <section class="hero">
+        <div class="hero-content">
+            <h1>STRANGER THINGS</h1>
+            <p class="hero-description">Když se mladý chlapec ztratí, malé město odhalí záhadu zahrnující tajné experimenty, děsivé nadpřirozené síly a podivnou malou holčičku.</p>
+            <div class="hero-buttons">
+                <button class="play-btn">▶ Přehrát</button>
+                <button class="info-btn">ℹ Více informací</button>
+            </div>
+        </div>
+        <div class="hero-gradient"></div>
+    </section>
+
+    <main class="main-content">
+        <section class="row">
+            <h2 class="row-title">Trendy teď</h2>
+            <div class="movie-row">
+                <div class="movie-item">
+                    <img src="https://via.placeholder.com/300x450/333333/666666?text=OUR+PLANET" alt="Our Planet" class="movie-poster">
+                </div>
+                <div class="movie-item">
+                    <img src="https://via.placeholder.com/300x450/333333/666666?text=RAISING+DION" alt="Raising Dion" class="movie-poster">
+                </div>
+                <div class="movie-item">
+                    <img src="https://via.placeholder.com/300x450/333333/666666?text=MURDER+MYSTERY" alt="Murder Mystery" class="movie-poster">
+                </div>
+                <div class="movie-item">
+                    <img src="https://via.placeholder.com/300x450/333333/666666?text=TIDYING+UP" alt="Tidying Up" class="movie-poster">
+                </div>
+            </div>
+        </section>
+
+        <section class="row">
+            <h2 class="row-title">Nově přidané</h2>
+            <div class="movie-row" id="movie-container">
+                <!-- Filmy se načtou zde -->
+            </div>
+        </section>
+    </main>
+
+    <div id="video-player" class="video-player-hidden">
+        <div class="video-container">
+            <video id="video" controls></video>
+            <button onclick="hidePlayer()" class="close-btn">✕ Zavřít</button>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
