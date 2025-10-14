@@ -1,0 +1,177 @@
+/* Přidejte tyto styly na konec souboru */
+
+/* Error states */
+.error-message {
+    text-align: center;
+    padding: 2rem;
+    color: #e50914;
+    font-size: 1.1rem;
+}
+
+.retry-btn {
+    background: #e50914;
+    color: white;
+    border: none;
+    padding: 0.5rem 1rem;
+    border-radius: 4px;
+    cursor: pointer;
+    margin-top: 1rem;
+    font-size: 0.9rem;
+}
+
+.error-toast {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    background: #e50914;
+    color: white;
+    padding: 1rem;
+    border-radius: 4px;
+    z-index: 3000;
+    animation: slideIn 0.3s ease;
+}
+
+@keyframes slideIn {
+    from { transform: translateX(100%); }
+    to { transform: translateX(0); }
+}
+
+/* Movie item improvements */
+.movie-item {
+    position: relative;
+    overflow: hidden;
+}
+
+.movie-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.7);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    padding: 1rem;
+}
+
+.movie-item:hover .movie-overlay {
+    opacity: 1;
+}
+
+.movie-title {
+    text-align: center;
+    font-size: 0.9rem;
+    margin-bottom: 1rem;
+    font-weight: bold;
+}
+
+.play-icon {
+    background: rgba(229, 9, 20, 0.9);
+    border: none;
+    border-radius: 50%;
+    width: 50px;
+    height: 50px;
+    color: white;
+    font-size: 1.2rem;
+    cursor: pointer;
+    transition: transform 0.2s ease;
+}
+
+.play-icon:hover {
+    transform: scale(1.1);
+    background: #e50914;
+}
+
+/* Video loading state */
+.video-loading {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: white;
+    font-size: 1.1rem;
+}
+
+/* Responsive improvements */
+@media (max-width: 768px) {
+    .hero-content {
+        padding-left: 20px;
+    }
+    
+    .row-title {
+        padding-left: 20px;
+    }
+    
+    .movie-row {
+        padding: 1rem 20px;
+    }
+    
+    .movie-poster {
+        width: 150px;
+        height: 225px;
+    }
+    
+    .hero-logo {
+        max-width: 300px;
+    }
+    
+    .hero-description {
+        font-size: 1rem;
+        max-width: 100%;
+        padding-right: 20px;
+    }
+    
+    .controls-bottom {
+        flex-direction: column;
+        gap: 10px;
+    }
+    
+    .center-controls {
+        order: -1;
+    }
+}
+
+/* Scrollbar styling for movie row (volitelné) */
+.movie-row {
+    scrollbar-width: thin;
+    scrollbar-color: #e50914 #333;
+}
+
+.movie-row::-webkit-scrollbar {
+    height: 8px;
+}
+
+.movie-row::-webkit-scrollbar-track {
+    background: #333;
+    border-radius: 4px;
+}
+
+.movie-row::-webkit-scrollbar-thumb {
+    background: #e50914;
+    border-radius: 4px;
+}
+
+/* Fullscreen video improvements */
+.video-wrapper:-webkit-full-screen {
+    width: 100%;
+    height: 100%;
+}
+
+.video-wrapper:-moz-full-screen {
+    width: 100%;
+    height: 100%;
+}
+
+.video-wrapper:-ms-fullscreen {
+    width: 100%;
+    height: 100%;
+}
+
+.video-wrapper:fullscreen {
+    width: 100%;
+    height: 100%;
+}
