@@ -1,9 +1,9 @@
 // Adresa pro M3U playlist
 const m3uUrl = 'https://api.allorigins.win/raw?url=' + encodeURIComponent('https://pastebin.com/raw/zKSiSwfd');
 
-// CORS proxy pro streamy. Tato je spolehlivá i pro Pixeldrain.
+// KLÍČOVÉ: CORS proxy pro streamy. Tato by měla fungovat i pro Pixeldrain.
+// Pokud by nefungovala, zkus ji změnit zpět na: 'https://cors-anywhere.herokuapp.com/'
 const corsProxy = 'https://thingproxy.freeboard.io/fetch/'; 
-// V případě chyby 403/404 zkus: 'https://cors-anywhere.herokuapp.com/'
 
 let allChannels = [];
 let currentHeroMovie = null;
@@ -203,8 +203,7 @@ function displayMovies(channels) {
 }
 
 /**
- * Přehrává video stream. Aplikuje CORS proxy na VŠECHNY externí streamy, aby se obešel problém s Pixeldrain/M3U8.
- * A řeší Autoplay chybu.
+ * Přehrává video stream. Aplikuje CORS proxy na VŠECHNY externí streamy a řeší Autoplay chybu.
  * @param {string} streamUrl URL streamu
  * @param {string} channelName Název filmu (pro chyby)
  */
@@ -234,7 +233,7 @@ function playChannel(streamUrl, channelName) {
     
     // 3. Spuštění přehrávání (HLS versus Nativní)
     
-    // Kontrola, zda je stream HLS (.m3u8) a zda je hls.js k dispozici
+    // Kontrola, zda je stream HLS (.m3u8) a zda je hls.js k dispozici (z index.html)
     if (typeof Hls !== 'undefined' && Hls.isSupported() && finalUrl.toLowerCase().includes('.m3u8')) {
         
         // Použijeme hls.js pro M3U8 streamy
@@ -294,25 +293,27 @@ function setupCustomControls() {
     const closePlayerBtn = document.querySelector('.close-player-btn');
 
     let isDragging = false;
-
+    
+    // Resetování timeoutu ovládacích prvků
+    function resetControlsTimer() {
+        clearTimeout(controlsTimeout);
+        controlsTimeout = setTimeout(hideControls, 3000);
+    }
+    
+    // Zobrazení ovládacích prvků
     function showControls() {
         customControls.classList.remove('controls-hidden');
         resetControlsTimer();
     }
-
+    
+    // Skrytí ovládacích prvků
     function hideControls() {
         if (!video.paused) {
             customControls.classList.add('controls-hidden');
         }
     }
 
-    function resetControlsTimer() {
-        clearTimeout(controlsTimeout);
-        controlsTimeout = setTimeout(hideControls, 3000);
-    }
-
     videoWrapper.addEventListener('click', function(e) {
-        // Kontrolujeme, jestli jsme neklikli na video nebo kontejner
         if (e.target === videoWrapper || e.target === video) {
             showControls();
         }
@@ -320,7 +321,6 @@ function setupCustomControls() {
 
     videoWrapper.addEventListener('mousemove', showControls);
     
-    // Zůstáváme viditelní, pokud je aktivní fullscreen
     document.addEventListener('fullscreenchange', function() {
         if (!document.fullscreenElement) {
             showControls(); 
@@ -336,7 +336,7 @@ function setupCustomControls() {
 
     function togglePlayPause() {
         if (video.paused) {
-            // Zkusíme spustit, pokud je to kvůli Autoplay
+            // Zkusíme spustit. Pokud se jedná o chybu Autoplay, druhé kliknutí by mělo pomoci.
             video.play().catch(error => {
                  console.error('Chyba Autoplay po kliknutí:', error);
             });
@@ -352,7 +352,7 @@ function setupCustomControls() {
     video.addEventListener('click', togglePlayPause);
 
     function updateProgress(e) {
-        if (!isDragging) return;
+        if (!isDragging || isNaN(video.duration)) return;
         const rect = progressContainer.getBoundingClientRect();
         const percent = (e.clientX - rect.left) / rect.width;
         video.currentTime = percent * video.duration;
@@ -375,11 +375,15 @@ function setupCustomControls() {
     progressContainer.addEventListener('click', (e) => {
         const rect = progressContainer.getBoundingClientRect();
         const percent = (e.clientX - rect.left) / rect.width;
-        video.currentTime = percent * video.duration;
+        if (!isNaN(video.duration)) {
+             video.currentTime = percent * video.duration;
+        }
         showControls();
     });
 
     video.addEventListener('timeupdate', () => {
+        if (isNaN(video.duration)) return; // Ignorujeme, dokud není načtena délka
+
         if (!isDragging) {
             const progress = (video.currentTime / video.duration) * 100;
             progressBar.style.width = `${progress}%`;
@@ -396,7 +400,7 @@ function setupCustomControls() {
         showControls();
     });
 
-    let speedIndex = 2; // Výchozí rychlost 1x
+    let speedIndex = 2; // Výchozí rychlost 1x (index 2 v poli speeds)
     const speeds = [0.5, 0.75, 1, 1.25, 1.5, 2];
     speedBtn.addEventListener('click', () => {
         speedIndex = (speedIndex + 1) % speeds.length;
