@@ -127,25 +127,26 @@ async function loadPlaylist() {
         const response = await fetch(m3uUrl);
         
         if (!response.ok) {
-            throw new Error('Chyba při načítání dat');
+            // Vylepšená chybová hláška při selhání proxy
+            throw new Error(`Načítání playlistu selhalo s kódem: ${response.status}. Zkus to později.`);
         }
         
         const m3uText = await response.text();
         
         if (!m3uText.includes('#EXTINF:')) {
-            throw new Error('Neplatný formát M3U souboru');
+            throw new Error('Neplatný formát M3U souboru: chybí #EXTINF.');
         }
         
         allChannels = parseM3U(m3uText);
         
         if (allChannels.length === 0) {
-            throw new Error('Žádné filmy nenalezeny');
+            throw new Error('Žádné filmy (kanály) nenalezeny v M3U.');
         }
         
         displayMovies(allChannels);
     } catch (error) {
         const movieContainer = document.getElementById('movie-container');
-        movieContainer.innerHTML = '<div class="loading">Nepodařilo se načíst filmy</div>';
+        movieContainer.innerHTML = `<div class="loading">Nepodařilo se načíst filmy: ${error.message}</div>`;
         console.error('Chyba při načítání playlistu:', error);
     }
 }
@@ -161,10 +162,13 @@ function parseM3U(m3uText) {
             const infoLine = line;
             const urlLine = lines[i + 1] ? lines[i + 1].trim() : '';
             
+            // Regex pro extrakci tvg-name a tvg-logo
             const nameMatch = infoLine.match(/tvg-name="([^"]*)"/);
             const logoMatch = infoLine.match(/tvg-logo="([^"]*)"/);
             
+            // Získání názvu: buď z tvg-name, nebo z konce řádku
             const name = nameMatch ? nameMatch[1] : infoLine.split(',').pop() || 'Neznámý film';
+            // Získání loga: buď z tvg-logo, nebo placeholder
             const logo = logoMatch ? logoMatch[1] : 'https://via.placeholder.com/200x300/333333/666666?text=EPIC+MOVIE';
             
             if (urlLine && !urlLine.startsWith('#') && urlLine !== '') {
@@ -205,61 +209,67 @@ function playChannel(streamUrl, channelName) {
     const videoPlayer = document.getElementById('video-player');
     const video = document.getElementById('video');
     
-    // Zobrazíme přehrávač
+    // 1. Zobrazíme přehrávač
     videoPlayer.className = 'video-player-visible';
     document.body.style.overflow = 'hidden';
     
-    // Vypneme předchozí stream pro čistý start
+    // Zastavíme předchozí přehrávání a zrušíme zdroj
+    video.pause(); 
     video.src = '';
+
+    // 2. ZAJIŠTĚNÍ HLS.JS INSTANCE
+    // Před novým přehráváním vždy zničíme starou hls instanci
+    if (video.hlsInstance) {
+        video.hlsInstance.destroy();
+        video.hlsInstance = null;
+    }
     
-    // ZAVÁDĚNÍ HLS.JS
-    if (Hls.isSupported() && streamUrl.endsWith('.m3u8')) {
-        // Logika pro HLS streamy, pokud je hls.js podporován a URL končí na .m3u8
-        
-        // Zde je malá úprava: pokud hls instance již existuje, musíme ji zničit
-        if (video.hlsInstance) {
-            video.hlsInstance.destroy();
-        }
+    // Kontrola, zda je stream HLS a zda je hls.js k dispozici
+    if (typeof Hls !== 'undefined' && Hls.isSupported() && streamUrl.toLowerCase().includes('.m3u8')) {
         
         const hls = new Hls();
-        // Uložení instance hls do video elementu pro snadné zničení
+        // Uložení instance do elementu pro její pozdější zničení v hidePlayer a zde
         video.hlsInstance = hls; 
         
         hls.loadSource(streamUrl);
         hls.attachMedia(video);
+        
         hls.on(Hls.Events.MANIFEST_PARSED, function() {
+            // Po úspěšné analýze manifestu můžeme spustit video
             video.play().catch(error => {
                 console.error('Chyba při spuštění HLS přehrávání:', error);
-                alert(`Nelze spustit stream: ${channelName}. Možná problém s autoplay.`);
+                alert(`Nelze spustit stream: ${channelName}. Možná problém s povolením 'autoplay'.`);
             });
         });
         
+        // Robustní zacházení s chybami HLS streamu (např. chyba sítě, manifestu)
         hls.on(Hls.Events.ERROR, function (event, data) {
             if (data.fatal) {
-                console.error('HLS Fatal Error:', data.details);
-                // V případě fatální chyby zkusíme fallback na nativní přehrávání
-                video.hlsInstance.destroy();
+                console.error(`HLS FATÁLNÍ CHYBA pro ${channelName}:`, data.details);
+                // V případě fatální chyby zkusíme fallback na nativní přehrávání (může pomoci u některých streamů)
+                if (video.hlsInstance) {
+                    video.hlsInstance.destroy();
+                }
                 video.src = streamUrl;
                 video.play().catch(error => {
-                    alert(`Chyba při přehrávání: ${channelName}. Zkus nativní.`);
+                    alert(`Chyba při přehrávání: ${channelName}. Možná problém s CORS.`);
                 });
             }
         });
 
     } else {
-        // Logika pro nativní MP4, WebM nebo prohlížečem podporované streamy
+        // Natvní přehrávání (pro MP4 nebo prohlížeče, které HLS podporují nativně - např. Safari)
         video.src = streamUrl;
         
         video.play().catch(error => {
-            console.error('Chyba při přehrávání:', error);
+            console.error('Chyba při nativním přehrávání:', error);
             alert(`Nelze přehrát: ${channelName}.`);
         });
     }
     
     resetControlsTimer();
 }
-// ... (zbytek kódu beze změny)
-// ... (funkce setupCustomControls, formatTime, hidePlayer, setupSearchToggle)
+
 
 function setupCustomControls() {
     const video = document.getElementById('video');
@@ -289,6 +299,7 @@ function setupCustomControls() {
 
     function resetControlsTimer() {
         clearTimeout(controlsTimeout);
+        // Kontroly se schovají po 3 sekundách neaktivity
         controlsTimeout = setTimeout(hideControls, 3000);
     }
 
@@ -373,7 +384,7 @@ function setupCustomControls() {
         showControls();
     });
 
-    let speedIndex = 1;
+    let speedIndex = 2; // Výchozí rychlost 1x (index 2 v poli [0.5, 0.75, 1, 1.25, 1.5, 2])
     const speeds = [0.5, 0.75, 1, 1.25, 1.5, 2];
     speedBtn.addEventListener('click', () => {
         speedIndex = (speedIndex + 1) % speeds.length;
@@ -402,7 +413,7 @@ function setupCustomControls() {
 }
 
 function formatTime(seconds) {
-    if (isNaN(seconds)) return '0:00';
+    if (isNaN(seconds) || seconds < 0) return '0:00';
     const minutes = Math.floor(seconds / 60);
     const secs = Math.floor(seconds % 60);
     return `${minutes}:${secs.toString().padStart(2, '0')}`;
@@ -412,14 +423,14 @@ function hidePlayer() {
     const videoPlayer = document.getElementById('video-player');
     const video = document.getElementById('video');
     
-    // Ujistíme se, že se zničí instance hls.js
+    // KLÍČOVÝ KROK: Musíme zničit instanci hls.js, aby se uvolnily zdroje a zabránilo se chybám při dalším spuštění
     if (video.hlsInstance) {
         video.hlsInstance.destroy();
         video.hlsInstance = null;
     }
     
     video.pause();
-    video.src = '';
+    video.src = ''; // Zrušíme zdroj videa
     videoPlayer.className = 'video-player-hidden';
     document.body.style.overflow = 'auto';
     clearTimeout(controlsTimeout);
