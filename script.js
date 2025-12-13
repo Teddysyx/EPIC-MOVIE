@@ -1,11 +1,15 @@
+// Adresa pro M3U playlist (používá proxy pro stažení samotného seznamu)
 const m3uUrl = 'https://api.allorigins.win/raw?url=' + encodeURIComponent('https://pastebin.com/raw/zKSiSwfd');
-// Nová proměnná pro proxy u video streamů
-const corsProxy = 'https://cors-anywhere.herokuapp.com/'; 
+
+// KLÍČOVÉ: CORS proxy pro streamy (Pixeldrain/M3U8). Tato by měla být spolehlivější.
+// Pokud by nefungovala, zkus ji změnit zpět na: 'https://cors-anywhere.herokuapp.com/'
+const corsProxy = 'https://thingproxy.freeboard.io/fetch/'; 
 
 let allChannels = [];
 let currentHeroMovie = null;
 let controlsTimeout;
 
+// Seznam doporučených filmů
 const featuredMovies = [
     {
         title: "Někdo to rád blond",
@@ -199,42 +203,52 @@ function displayMovies(channels) {
 }
 
 /**
- * Přehrává video stream. Pokud je to HLS/M3U8, použije hls.js. Jinak použije nativní přehrávač.
- * * KLÍČOVÁ ZMĚNA: Používá corsProxy pro streamy z M3U, aby se obešel CORS problém.
- * * @param {string} streamUrl URL streamu
+ * Přehrává video stream. Aplikuje CORS proxy na VŠECHNY externí streamy, aby se obešel problém s Pixeldrain/M3U8.
+ * @param {string} streamUrl URL streamu
  * @param {string} channelName Název filmu (pro chyby)
  */
 function playChannel(streamUrl, channelName) {
     const videoPlayer = document.getElementById('video-player');
     const video = document.getElementById('video');
     
-    // Zobrazíme přehrávač
+    // 1. Zobrazení přehrávače a zastavení
     videoPlayer.className = 'video-player-visible';
     document.body.style.overflow = 'hidden';
-    
-    // Zastavíme předchozí přehrávání a zrušíme zdroj
     video.pause(); 
-    video.src = '';
-
-    // Před novým přehráváním vždy zničíme starou hls instanci
+    
+    // Zničení hls instance
     if (video.hlsInstance) {
         video.hlsInstance.destroy();
         video.hlsInstance = null;
     }
-    
-    // ZÍSKÁNÍ OPRAVENÉ URL PRO PŘEHRÁVÁNÍ
+
+    // 2. Aplikace proxy na KAŽDÝ externí odkaz
     let finalUrl = streamUrl;
-    // Pokud je to HLS stream A neobsahuje náš vlastní pixeldrain, použijeme proxy
-    if (streamUrl.toLowerCase().includes('.m3u8') && !streamUrl.includes('pixeldrain.com')) {
-         // Proxy je potřeba POUZE pro externí HLS/M3U8 streamy
-        finalUrl = corsProxy + streamUrl;
+    // Předpokládáme, že pokud odkaz začíná http/https, je externí
+    if (streamUrl.startsWith('http')) {
+        finalUrl = corsProxy + streamUrl; 
+        console.log(`Používám CORS proxy pro stream: ${finalUrl}`);
     }
+    
+    
+    // 3. Spuštění přehrávání (HLS versus Nativní)
     
     // Kontrola, zda je stream HLS a zda je hls.js k dispozici
     if (typeof Hls !== 'undefined' && Hls.isSupported() && finalUrl.toLowerCase().includes('.m3u8')) {
         
+        // Použijeme hls.js pro M3U8 streamy
         const hls = new Hls();
         video.hlsInstance = hls; 
+        
+        hls.on(Hls.Events.ERROR, function (event, data) {
+            if (data.fatal) {
+                console.error(`HLS FATÁLNÍ CHYBA pro ${channelName}:`, data.details, data);
+                if (video.hlsInstance) {
+                    video.hlsInstance.destroy();
+                }
+                alert(`CHYBA: Stream pro film "${channelName}" nelze načíst/analyzovat. Zkus jiný film nebo jinou proxy.`);
+            }
+        });
         
         hls.loadSource(finalUrl);
         hls.attachMedia(video);
@@ -242,31 +256,18 @@ function playChannel(streamUrl, channelName) {
         hls.on(Hls.Events.MANIFEST_PARSED, function() {
             video.play().catch(error => {
                 console.error('Chyba při spuštění HLS přehrávání:', error);
-                alert(`Nelze spustit stream: ${channelName}. Důvod: ${error.message}`);
+                alert(`Nelze spustit stream: ${channelName}. Klikni prosím ještě jednou pro Autoplay.`);
             });
-        });
-        
-        hls.on(Hls.Events.ERROR, function (event, data) {
-            if (data.fatal) {
-                console.error(`HLS FATÁLNÍ CHYBA pro ${channelName}:`, data.details);
-                if (video.hlsInstance) {
-                    video.hlsInstance.destroy();
-                }
-                // Zkusíme fallback na nativní bez proxy
-                video.src = streamUrl; 
-                video.play().catch(error => {
-                    alert(`Chyba: ${channelName}. Možná problém s proxy.`);
-                });
-            }
         });
 
     } else {
-        // Natvní přehrávání (pro MP4, WebM nebo prohlížeče, které HLS podporují nativně)
+        // Natvní přehrávání (pro MP4/MKV a streamy, které neobsahují .m3u8)
         video.src = finalUrl;
         
         video.play().catch(error => {
             console.error('Chyba při nativním přehrávání:', error);
-            alert(`Nelze přehrát: ${channelName}. Důvod: ${error.message}`);
+            // Upozorníme na Autoplay, což je častá chyba nativního přehrávání
+            alert(`Nelze přehrát: ${channelName}. Chyba Autoplay: Klikni prosím ještě jednou.`);
         });
     }
     
@@ -313,13 +314,12 @@ function setupCustomControls() {
 
     videoWrapper.addEventListener('mousemove', showControls);
     
-    // ZAJISTÍ, ŽE SE OVLÁDACÍ PRVKY ZNOVU ZOBRAZÍ PO OPUŠTĚNÍ FULLSCREENU
     document.addEventListener('fullscreenchange', function() {
         if (!document.fullscreenElement) {
             showControls(); 
         }
     });
-    // ZAJISTÍ, ŽE SE OVLÁDACÍ PRVKY ZNOVU ZOBRAZÍ PO OPUŠTĚNÍ FULLSCREENU (pro Webkit/Safari)
+
     document.addEventListener('webkitfullscreenchange', function() {
         if (!document.webkitFullscreenElement) {
             showControls();
@@ -498,7 +498,7 @@ function setupSearchToggle() {
 const playBtn = document.querySelector('.play-btn');
 playBtn.addEventListener('click', () => {
     if (currentHeroMovie && currentHeroMovie.streamUrl) {
-        // Filmy, které se načítají z featuredMovies, proxy nepotřebují, ty fungovaly
+        // Použijeme playChannel pro spuštění i doporučeného filmu
         playChannel(currentHeroMovie.streamUrl, currentHeroMovie.title);
     } else {
         alert('Pro tento film není dostupný stream.');
