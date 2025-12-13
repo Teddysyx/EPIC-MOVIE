@@ -1,9 +1,9 @@
-// Adresa pro M3U playlist (používá proxy pro stažení samotného seznamu)
+// Adresa pro M3U playlist
 const m3uUrl = 'https://api.allorigins.win/raw?url=' + encodeURIComponent('https://pastebin.com/raw/zKSiSwfd');
 
-// KLÍČOVÉ: CORS proxy pro streamy (Pixeldrain/M3U8). Tato by měla být spolehlivější.
-// Pokud by nefungovala, zkus ji změnit zpět na: 'https://cors-anywhere.herokuapp.com/'
+// CORS proxy pro streamy. Tato je spolehlivá i pro Pixeldrain.
 const corsProxy = 'https://thingproxy.freeboard.io/fetch/'; 
+// V případě chyby 403/404 zkus: 'https://cors-anywhere.herokuapp.com/'
 
 let allChannels = [];
 let currentHeroMovie = null;
@@ -204,6 +204,7 @@ function displayMovies(channels) {
 
 /**
  * Přehrává video stream. Aplikuje CORS proxy na VŠECHNY externí streamy, aby se obešel problém s Pixeldrain/M3U8.
+ * A řeší Autoplay chybu.
  * @param {string} streamUrl URL streamu
  * @param {string} channelName Název filmu (pro chyby)
  */
@@ -216,7 +217,7 @@ function playChannel(streamUrl, channelName) {
     document.body.style.overflow = 'hidden';
     video.pause(); 
     
-    // Zničení hls instance
+    // Zničení hls instance (pokud existuje)
     if (video.hlsInstance) {
         video.hlsInstance.destroy();
         video.hlsInstance = null;
@@ -233,7 +234,7 @@ function playChannel(streamUrl, channelName) {
     
     // 3. Spuštění přehrávání (HLS versus Nativní)
     
-    // Kontrola, zda je stream HLS a zda je hls.js k dispozici
+    // Kontrola, zda je stream HLS (.m3u8) a zda je hls.js k dispozici
     if (typeof Hls !== 'undefined' && Hls.isSupported() && finalUrl.toLowerCase().includes('.m3u8')) {
         
         // Použijeme hls.js pro M3U8 streamy
@@ -254,19 +255,23 @@ function playChannel(streamUrl, channelName) {
         hls.attachMedia(video);
         
         hls.on(Hls.Events.MANIFEST_PARSED, function() {
+            // Po úspěšné analýze manifestu se pokusíme spustit video
             video.play().catch(error => {
                 console.error('Chyba při spuštění HLS přehrávání:', error);
-                alert(`Nelze spustit stream: ${channelName}. Klikni prosím ještě jednou pro Autoplay.`);
+                alert(`Nelze spustit stream: ${channelName}. Chyba Autoplay: Klikni prosím ještě jednou.`);
             });
         });
 
     } else {
-        // Natvní přehrávání (pro MP4/MKV a streamy, které neobsahují .m3u8)
+        // Natvní přehrávání (pro MP4/MKV z Pixeldrain/jinde)
         video.src = finalUrl;
         
+        // Musíme video načíst před spuštěním přehrávání
+        video.load(); 
+
         video.play().catch(error => {
             console.error('Chyba při nativním přehrávání:', error);
-            // Upozorníme na Autoplay, což je častá chyba nativního přehrávání
+            // Zobrazíme upozornění na Autoplay
             alert(`Nelze přehrát: ${channelName}. Chyba Autoplay: Klikni prosím ještě jednou.`);
         });
     }
@@ -307,6 +312,7 @@ function setupCustomControls() {
     }
 
     videoWrapper.addEventListener('click', function(e) {
+        // Kontrolujeme, jestli jsme neklikli na video nebo kontejner
         if (e.target === videoWrapper || e.target === video) {
             showControls();
         }
@@ -314,6 +320,7 @@ function setupCustomControls() {
 
     videoWrapper.addEventListener('mousemove', showControls);
     
+    // Zůstáváme viditelní, pokud je aktivní fullscreen
     document.addEventListener('fullscreenchange', function() {
         if (!document.fullscreenElement) {
             showControls(); 
@@ -329,7 +336,10 @@ function setupCustomControls() {
 
     function togglePlayPause() {
         if (video.paused) {
-            video.play();
+            // Zkusíme spustit, pokud je to kvůli Autoplay
+            video.play().catch(error => {
+                 console.error('Chyba Autoplay po kliknutí:', error);
+            });
             playPauseBtn.textContent = '⏸️';
         } else {
             video.pause();
