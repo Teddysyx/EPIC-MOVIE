@@ -124,10 +124,10 @@ async function loadPlaylist() {
         const movieContainer = document.getElementById('movie-container');
         movieContainer.innerHTML = '<div class="loading">Načítám filmy...</div>';
 
+        // Opravená adresa pro CORS proxy
         const response = await fetch(m3uUrl);
         
         if (!response.ok) {
-            // Vylepšená chybová hláška při selhání proxy
             throw new Error(`Načítání playlistu selhalo s kódem: ${response.status}. Zkus to později.`);
         }
         
@@ -162,13 +162,10 @@ function parseM3U(m3uText) {
             const infoLine = line;
             const urlLine = lines[i + 1] ? lines[i + 1].trim() : '';
             
-            // Regex pro extrakci tvg-name a tvg-logo
             const nameMatch = infoLine.match(/tvg-name="([^"]*)"/);
             const logoMatch = infoLine.match(/tvg-logo="([^"]*)"/);
             
-            // Získání názvu: buď z tvg-name, nebo z konce řádku
             const name = nameMatch ? nameMatch[1] : infoLine.split(',').pop() || 'Neznámý film';
-            // Získání loga: buď z tvg-logo, nebo placeholder
             const logo = logoMatch ? logoMatch[1] : 'https://via.placeholder.com/200x300/333333/666666?text=EPIC+MOVIE';
             
             if (urlLine && !urlLine.startsWith('#') && urlLine !== '') {
@@ -202,7 +199,7 @@ function displayMovies(channels) {
 
 /**
  * Přehrává video stream. Pokud je to HLS/M3U8, použije hls.js. Jinak použije nativní přehrávač.
- * @param {string} streamUrl URL streamu
+ * * @param {string} streamUrl URL streamu
  * @param {string} channelName Název filmu (pro chyby)
  */
 function playChannel(streamUrl, channelName) {
@@ -217,53 +214,52 @@ function playChannel(streamUrl, channelName) {
     video.pause(); 
     video.src = '';
 
-    // 2. ZAJIŠTĚNÍ HLS.JS INSTANCE
-    // Před novým přehráváním vždy zničíme starou hls instanci
+    // 2. KLÍČOVÁ OPRAVA: ZAJIŠTĚNÍ HLS.JS INSTANCE
+    // Před novým přehráváním vždy zničíme starou hls instanci, pokud existuje
     if (video.hlsInstance) {
         video.hlsInstance.destroy();
         video.hlsInstance = null;
     }
     
     // Kontrola, zda je stream HLS a zda je hls.js k dispozici
+    // Kontrolujeme také, zda je HLS definováno (z index.html)
     if (typeof Hls !== 'undefined' && Hls.isSupported() && streamUrl.toLowerCase().includes('.m3u8')) {
         
         const hls = new Hls();
-        // Uložení instance do elementu pro její pozdější zničení v hidePlayer a zde
+        // Uložení instance do elementu
         video.hlsInstance = hls; 
         
         hls.loadSource(streamUrl);
         hls.attachMedia(video);
         
         hls.on(Hls.Events.MANIFEST_PARSED, function() {
-            // Po úspěšné analýze manifestu můžeme spustit video
             video.play().catch(error => {
                 console.error('Chyba při spuštění HLS přehrávání:', error);
-                alert(`Nelze spustit stream: ${channelName}. Možná problém s povolením 'autoplay'.`);
+                alert(`Nelze spustit stream: ${channelName}. Důvod: ${error.message}`);
             });
         });
         
-        // Robustní zacházení s chybami HLS streamu (např. chyba sítě, manifestu)
         hls.on(Hls.Events.ERROR, function (event, data) {
             if (data.fatal) {
                 console.error(`HLS FATÁLNÍ CHYBA pro ${channelName}:`, data.details);
-                // V případě fatální chyby zkusíme fallback na nativní přehrávání (může pomoci u některých streamů)
+                // V případě fatální chyby zkusíme nativní přehrávání
                 if (video.hlsInstance) {
                     video.hlsInstance.destroy();
                 }
                 video.src = streamUrl;
                 video.play().catch(error => {
-                    alert(`Chyba při přehrávání: ${channelName}. Možná problém s CORS.`);
+                    alert(`Chyba při přehrávání: ${channelName}. Možná problém s CORS, nebo je link neplatný.`);
                 });
             }
         });
 
     } else {
-        // Natvní přehrávání (pro MP4 nebo prohlížeče, které HLS podporují nativně - např. Safari)
+        // Natvní přehrávání (pro MP4, WebM nebo prohlížeče, které HLS podporují nativně - např. Safari)
         video.src = streamUrl;
         
         video.play().catch(error => {
             console.error('Chyba při nativním přehrávání:', error);
-            alert(`Nelze přehrát: ${channelName}.`);
+            alert(`Nelze přehrát: ${channelName}. Důvod: ${error.message}`);
         });
     }
     
@@ -299,7 +295,6 @@ function setupCustomControls() {
 
     function resetControlsTimer() {
         clearTimeout(controlsTimeout);
-        // Kontroly se schovají po 3 sekundách neaktivity
         controlsTimeout = setTimeout(hideControls, 3000);
     }
 
@@ -423,14 +418,14 @@ function hidePlayer() {
     const videoPlayer = document.getElementById('video-player');
     const video = document.getElementById('video');
     
-    // KLÍČOVÝ KROK: Musíme zničit instanci hls.js, aby se uvolnily zdroje a zabránilo se chybám při dalším spuštění
+    // ZNIČENÍ HLS INSTANCE: Uvolní zdroje a zabrání chybám
     if (video.hlsInstance) {
         video.hlsInstance.destroy();
         video.hlsInstance = null;
     }
     
     video.pause();
-    video.src = ''; // Zrušíme zdroj videa
+    video.src = ''; 
     videoPlayer.className = 'video-player-hidden';
     document.body.style.overflow = 'auto';
     clearTimeout(controlsTimeout);
