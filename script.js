@@ -1,4 +1,6 @@
 const m3uUrl = 'https://api.allorigins.win/raw?url=' + encodeURIComponent('https://pastebin.com/raw/zKSiSwfd');
+// Nová proměnná pro proxy u video streamů
+const corsProxy = 'https://cors-anywhere.herokuapp.com/'; 
 
 let allChannels = [];
 let currentHeroMovie = null;
@@ -124,7 +126,6 @@ async function loadPlaylist() {
         const movieContainer = document.getElementById('movie-container');
         movieContainer.innerHTML = '<div class="loading">Načítám filmy...</div>';
 
-        // Opravená adresa pro CORS proxy
         const response = await fetch(m3uUrl);
         
         if (!response.ok) {
@@ -199,6 +200,7 @@ function displayMovies(channels) {
 
 /**
  * Přehrává video stream. Pokud je to HLS/M3U8, použije hls.js. Jinak použije nativní přehrávač.
+ * * KLÍČOVÁ ZMĚNA: Používá corsProxy pro streamy z M3U, aby se obešel CORS problém.
  * * @param {string} streamUrl URL streamu
  * @param {string} channelName Název filmu (pro chyby)
  */
@@ -206,7 +208,7 @@ function playChannel(streamUrl, channelName) {
     const videoPlayer = document.getElementById('video-player');
     const video = document.getElementById('video');
     
-    // 1. Zobrazíme přehrávač
+    // Zobrazíme přehrávač
     videoPlayer.className = 'video-player-visible';
     document.body.style.overflow = 'hidden';
     
@@ -214,22 +216,27 @@ function playChannel(streamUrl, channelName) {
     video.pause(); 
     video.src = '';
 
-    // 2. KLÍČOVÁ OPRAVA: ZAJIŠTĚNÍ HLS.JS INSTANCE
-    // Před novým přehráváním vždy zničíme starou hls instanci, pokud existuje
+    // Před novým přehráváním vždy zničíme starou hls instanci
     if (video.hlsInstance) {
         video.hlsInstance.destroy();
         video.hlsInstance = null;
     }
     
+    // ZÍSKÁNÍ OPRAVENÉ URL PRO PŘEHRÁVÁNÍ
+    let finalUrl = streamUrl;
+    // Pokud je to HLS stream A neobsahuje náš vlastní pixeldrain, použijeme proxy
+    if (streamUrl.toLowerCase().includes('.m3u8') && !streamUrl.includes('pixeldrain.com')) {
+         // Proxy je potřeba POUZE pro externí HLS/M3U8 streamy
+        finalUrl = corsProxy + streamUrl;
+    }
+    
     // Kontrola, zda je stream HLS a zda je hls.js k dispozici
-    // Kontrolujeme také, zda je HLS definováno (z index.html)
-    if (typeof Hls !== 'undefined' && Hls.isSupported() && streamUrl.toLowerCase().includes('.m3u8')) {
+    if (typeof Hls !== 'undefined' && Hls.isSupported() && finalUrl.toLowerCase().includes('.m3u8')) {
         
         const hls = new Hls();
-        // Uložení instance do elementu
         video.hlsInstance = hls; 
         
-        hls.loadSource(streamUrl);
+        hls.loadSource(finalUrl);
         hls.attachMedia(video);
         
         hls.on(Hls.Events.MANIFEST_PARSED, function() {
@@ -242,20 +249,20 @@ function playChannel(streamUrl, channelName) {
         hls.on(Hls.Events.ERROR, function (event, data) {
             if (data.fatal) {
                 console.error(`HLS FATÁLNÍ CHYBA pro ${channelName}:`, data.details);
-                // V případě fatální chyby zkusíme nativní přehrávání
                 if (video.hlsInstance) {
                     video.hlsInstance.destroy();
                 }
-                video.src = streamUrl;
+                // Zkusíme fallback na nativní bez proxy
+                video.src = streamUrl; 
                 video.play().catch(error => {
-                    alert(`Chyba při přehrávání: ${channelName}. Možná problém s CORS, nebo je link neplatný.`);
+                    alert(`Chyba: ${channelName}. Možná problém s proxy.`);
                 });
             }
         });
 
     } else {
-        // Natvní přehrávání (pro MP4, WebM nebo prohlížeče, které HLS podporují nativně - např. Safari)
-        video.src = streamUrl;
+        // Natvní přehrávání (pro MP4, WebM nebo prohlížeče, které HLS podporují nativně)
+        video.src = finalUrl;
         
         video.play().catch(error => {
             console.error('Chyba při nativním přehrávání:', error);
@@ -379,7 +386,7 @@ function setupCustomControls() {
         showControls();
     });
 
-    let speedIndex = 2; // Výchozí rychlost 1x (index 2 v poli [0.5, 0.75, 1, 1.25, 1.5, 2])
+    let speedIndex = 2; // Výchozí rychlost 1x
     const speeds = [0.5, 0.75, 1, 1.25, 1.5, 2];
     speedBtn.addEventListener('click', () => {
         speedIndex = (speedIndex + 1) % speeds.length;
@@ -418,7 +425,7 @@ function hidePlayer() {
     const videoPlayer = document.getElementById('video-player');
     const video = document.getElementById('video');
     
-    // ZNIČENÍ HLS INSTANCE: Uvolní zdroje a zabrání chybám
+    // ZNIČENÍ HLS INSTANCE
     if (video.hlsInstance) {
         video.hlsInstance.destroy();
         video.hlsInstance = null;
@@ -491,6 +498,7 @@ function setupSearchToggle() {
 const playBtn = document.querySelector('.play-btn');
 playBtn.addEventListener('click', () => {
     if (currentHeroMovie && currentHeroMovie.streamUrl) {
+        // Filmy, které se načítají z featuredMovies, proxy nepotřebují, ty fungovaly
         playChannel(currentHeroMovie.streamUrl, currentHeroMovie.title);
     } else {
         alert('Pro tento film není dostupný stream.');
