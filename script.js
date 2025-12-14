@@ -354,9 +354,16 @@ function formatTime(seconds) {
 
 function hidePlayer() {
     const videoPlayer = document.getElementById('video-player');
-    const iframe = document.getElementById('video-iframe');
+    const video = document.getElementById('video');
     
-    iframe.src = '';
+    video.pause();
+    video.src = '';
+    
+    if (hls) {
+        hls.destroy();
+        hls = null;
+    }
+    
     videoPlayer.className = 'video-player-hidden';
     document.body.style.overflow = 'auto';
     clearTimeout(controlsTimeout);
