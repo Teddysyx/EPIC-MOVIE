@@ -215,6 +215,9 @@ function playChannel(streamUrl, channelName) {
         hls = null;
     }
     
+    // Nastavit video na ztlumené pro bypass autoplay politiky
+    video.muted = true;
+    
     // Detekce typu streamu
     if (streamUrl.includes('.m3u8')) {
         // HLS stream
@@ -222,16 +225,30 @@ function playChannel(streamUrl, channelName) {
             hls = new Hls({
                 enableWorker: true,
                 lowLatencyMode: false,
-                backBufferLength: 90
+                backBufferLength: 90,
+                maxBufferLength: 30,
+                maxMaxBufferLength: 60
             });
             hls.loadSource(streamUrl);
             hls.attachMedia(video);
             
             hls.on(Hls.Events.MANIFEST_PARSED, function() {
-                video.play().catch(error => {
-                    console.error('Chyba při přehrávání:', error);
-                    alert(`Nelze přehrát: ${channelName}`);
-                });
+                const playPromise = video.play();
+                
+                if (playPromise !== undefined) {
+                    playPromise.then(() => {
+                        // Automatické zapnutí zvuku po spuštění
+                        setTimeout(() => {
+                            video.muted = false;
+                            const volumeBtn = document.querySelector('.volume-btn');
+                            if (volumeBtn) volumeBtn.textContent = '🔊';
+                        }, 100);
+                    }).catch(error => {
+                        console.error('Chyba při přehrávání:', error);
+                        // Pokus znovu s interakcí uživatele
+                        showPlayButton(streamUrl, channelName);
+                    });
+                }
             });
             
             hls.on(Hls.Events.ERROR, function(event, data) {
@@ -239,16 +256,17 @@ function playChannel(streamUrl, channelName) {
                     console.error('Kritická chyba HLS:', data);
                     switch(data.type) {
                         case Hls.ErrorTypes.NETWORK_ERROR:
-                            console.error('Síťová chyba');
+                            console.error('Síťová chyba - pokus o obnovení');
                             hls.startLoad();
                             break;
                         case Hls.ErrorTypes.MEDIA_ERROR:
-                            console.error('Chyba média');
+                            console.error('Chyba média - pokus o opravu');
                             hls.recoverMediaError();
                             break;
                         default:
                             hls.destroy();
-                            alert(`Nelze přehrát stream: ${channelName}`);
+                            alert(`Nelze přehrát stream: ${channelName}\nChyba: ${data.details}`);
+                            hidePlayer();
                             break;
                     }
                 }
@@ -256,23 +274,68 @@ function playChannel(streamUrl, channelName) {
         } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
             // Nativní HLS podpora (Safari)
             video.src = streamUrl;
-            video.play().catch(error => {
-                console.error('Chyba při přehrávání:', error);
-                alert(`Nelze přehrát: ${channelName}`);
-            });
+            const playPromise = video.play();
+            
+            if (playPromise !== undefined) {
+                playPromise.then(() => {
+                    setTimeout(() => {
+                        video.muted = false;
+                        const volumeBtn = document.querySelector('.volume-btn');
+                        if (volumeBtn) volumeBtn.textContent = '🔊';
+                    }, 100);
+                }).catch(error => {
+                    console.error('Chyba při přehrávání:', error);
+                    showPlayButton(streamUrl, channelName);
+                });
+            }
         } else {
             alert('Váš prohlížeč nepodporuje přehrávání HLS streamů');
+            hidePlayer();
         }
     } else {
         // Běžný video stream (MP4, atd.)
         video.src = streamUrl;
-        video.play().catch(error => {
-            console.error('Chyba při přehrávání:', error);
-            alert(`Nelze přehrát: ${channelName}`);
-        });
+        const playPromise = video.play();
+        
+        if (playPromise !== undefined) {
+            playPromise.then(() => {
+                setTimeout(() => {
+                    video.muted = false;
+                    const volumeBtn = document.querySelector('.volume-btn');
+                    if (volumeBtn) volumeBtn.textContent = '🔊';
+                }, 100);
+            }).catch(error => {
+                console.error('Chyba při přehrávání:', error);
+                showPlayButton(streamUrl, channelName);
+            });
+        }
     }
     
     resetControlsTimer();
+}
+
+function showPlayButton(streamUrl, channelName) {
+    const video = document.getElementById('video');
+    const videoWrapper = document.querySelector('.video-wrapper');
+    
+    // Vytvoření velkého play tlačítka
+    const bigPlayBtn = document.createElement('div');
+    bigPlayBtn.className = 'big-play-button';
+    bigPlayBtn.innerHTML = '▶';
+    
+    bigPlayBtn.addEventListener('click', () => {
+        video.muted = false;
+        video.play().then(() => {
+            bigPlayBtn.remove();
+            const volumeBtn = document.querySelector('.volume-btn');
+            if (volumeBtn) volumeBtn.textContent = '🔊';
+        }).catch(error => {
+            console.error('Stále nelze přehrát:', error);
+            alert(`Nelze přehrát: ${channelName}`);
+        });
+    });
+    
+    videoWrapper.appendChild(bigPlayBtn);
 }
 
 function setupCustomControls() {
