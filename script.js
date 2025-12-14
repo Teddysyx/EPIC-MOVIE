@@ -1,4 +1,4 @@
-const m3uUrl = 'https://pastebin.com/raw/zKSiSwfd';
+const m3uUrl = 'https://api.allorigins.win/raw?url=' + encodeURIComponent('https://pastebin.com/raw/zKSiSwfd');
 
 let allChannels = [];
 let currentHeroMovie = null;
