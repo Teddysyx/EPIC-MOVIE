@@ -1,21 +1,16 @@
-// Adresa pro M3U playlist
 const m3uUrl = 'https://api.allorigins.win/raw?url=' + encodeURIComponent('https://pastebin.com/raw/zKSiSwfd');
-
-// KLÍČOVÉ: CORS proxy pro streamy. Tato by měla fungovat i pro Pixeldrain.
-// Pokud by nefungovala, zkus ji změnit zpět na: 'https://cors-anywhere.herokuapp.com/'
-const corsProxy = 'https://thingproxy.freeboard.io/fetch/'; 
 
 let allChannels = [];
 let currentHeroMovie = null;
 let controlsTimeout;
+let hls = null;
 
-// Seznam doporučených filmů
 const featuredMovies = [
     {
         title: "Někdo to rád blond",
         background: "https://image.tmdb.org/t/p/original/8L7FEp6yY9E1qQODqx3H7ah9qxA.jpg",
         logo: "https://image.tmdb.org/t/p/original/5z7b2SxNZnpN7iYQ8x8ZX6O3u9p.png",
-        description: "Dva agenti FBI černé pleti mají ochránit dvě bílé holky z bohaté rodiny před únosem a nenapadne je nic lepšího, než se za ně prostě převléknout.",
+        description: "Dva agenti FBI černé pleti mají ochránit dvě bílé holky z bohaté rodiny před únosem a nenapadne jim nic lepšího, než se za ně prostě převléknout.",
         streamUrl: "https://pixeldrain.com/api/file/1cYyBHPh"
     },
     {
@@ -78,7 +73,7 @@ const featuredMovies = [
         title: "Creed 2",
         background: "https://image.tmdb.org/t/p/original/uYJQeakgSrp7peOoH7d0GfUBsyN.jpg",
         logo: "https://image.tmdb.org/t/p/original/bSvErsk6t4UwMiMW2aaLzHShFqP.png",
-        description: "Další kapitola příběhu Adonises Creeda pojednává o jeho zážitcích v ringu i mimo něj. Hlavní hrdina se potýká s nově nabytou slávou a problémy s rodinou.",
+        description: "Další kapitola příběhu Adonise Creeda pojednává o jeho zážitcích v ringu i mimo něj. Hlavní hrdina se potýká s nově nabytou slávou a problémy s rodinou.",
         streamUrl: "https://pixeldrain.com/api/file/VHaCtTCC"
     }
 ];
@@ -133,25 +128,25 @@ async function loadPlaylist() {
         const response = await fetch(m3uUrl);
         
         if (!response.ok) {
-            throw new Error(`Načítání playlistu selhalo s kódem: ${response.status}. Zkus to později.`);
+            throw new Error('Chyba při načítání dat');
         }
         
         const m3uText = await response.text();
         
         if (!m3uText.includes('#EXTINF:')) {
-            throw new Error('Neplatný formát M3U souboru: chybí #EXTINF.');
+            throw new Error('Neplatný formát M3U souboru');
         }
         
         allChannels = parseM3U(m3uText);
         
         if (allChannels.length === 0) {
-            throw new Error('Žádné filmy (kanály) nenalezeny v M3U.');
+            throw new Error('Žádné filmy nenalezeny');
         }
         
         displayMovies(allChannels);
     } catch (error) {
         const movieContainer = document.getElementById('movie-container');
-        movieContainer.innerHTML = `<div class="loading">Nepodařilo se načíst filmy: ${error.message}</div>`;
+        movieContainer.innerHTML = '<div class="loading">Nepodařilo se načíst filmy. Zkuste to prosím později.</div>';
         console.error('Chyba při načítání playlistu:', error);
     }
 }
@@ -170,7 +165,12 @@ function parseM3U(m3uText) {
             const nameMatch = infoLine.match(/tvg-name="([^"]*)"/);
             const logoMatch = infoLine.match(/tvg-logo="([^"]*)"/);
             
-            const name = nameMatch ? nameMatch[1] : infoLine.split(',').pop() || 'Neznámý film';
+            let name = nameMatch ? nameMatch[1] : '';
+            if (!name) {
+                const parts = infoLine.split(',');
+                name = parts.length > 1 ? parts[parts.length - 1].trim() : 'Neznámý film';
+            }
+            
             const logo = logoMatch ? logoMatch[1] : 'https://via.placeholder.com/200x300/333333/666666?text=EPIC+MOVIE';
             
             if (urlLine && !urlLine.startsWith('#') && urlLine !== '') {
@@ -202,82 +202,78 @@ function displayMovies(channels) {
     });
 }
 
-/**
- * Přehrává video stream. Aplikuje CORS proxy na VŠECHNY externí streamy a řeší Autoplay chybu.
- * @param {string} streamUrl URL streamu
- * @param {string} channelName Název filmu (pro chyby)
- */
 function playChannel(streamUrl, channelName) {
     const videoPlayer = document.getElementById('video-player');
     const video = document.getElementById('video');
     
-    // 1. Zobrazení přehrávače a zastavení
     videoPlayer.className = 'video-player-visible';
     document.body.style.overflow = 'hidden';
-    video.pause(); 
     
-    // Zničení hls instance (pokud existuje)
-    if (video.hlsInstance) {
-        video.hlsInstance.destroy();
-        video.hlsInstance = null;
-    }
-
-    // 2. Aplikace proxy na KAŽDÝ externí odkaz
-    let finalUrl = streamUrl;
-    // Předpokládáme, že pokud odkaz začíná http/https, je externí
-    if (streamUrl.startsWith('http')) {
-        finalUrl = corsProxy + streamUrl; 
-        console.log(`Používám CORS proxy pro stream: ${finalUrl}`);
+    // Vyčistit předchozí HLS instanci
+    if (hls) {
+        hls.destroy();
+        hls = null;
     }
     
-    
-    // 3. Spuštění přehrávání (HLS versus Nativní)
-    
-    // Kontrola, zda je stream HLS (.m3u8) a zda je hls.js k dispozici (z index.html)
-    if (typeof Hls !== 'undefined' && Hls.isSupported() && finalUrl.toLowerCase().includes('.m3u8')) {
-        
-        // Použijeme hls.js pro M3U8 streamy
-        const hls = new Hls();
-        video.hlsInstance = hls; 
-        
-        hls.on(Hls.Events.ERROR, function (event, data) {
-            if (data.fatal) {
-                console.error(`HLS FATÁLNÍ CHYBA pro ${channelName}:`, data.details, data);
-                if (video.hlsInstance) {
-                    video.hlsInstance.destroy();
-                }
-                alert(`CHYBA: Stream pro film "${channelName}" nelze načíst/analyzovat. Zkus jiný film nebo jinou proxy.`);
-            }
-        });
-        
-        hls.loadSource(finalUrl);
-        hls.attachMedia(video);
-        
-        hls.on(Hls.Events.MANIFEST_PARSED, function() {
-            // Po úspěšné analýze manifestu se pokusíme spustit video
-            video.play().catch(error => {
-                console.error('Chyba při spuštění HLS přehrávání:', error);
-                alert(`Nelze spustit stream: ${channelName}. Chyba Autoplay: Klikni prosím ještě jednou.`);
+    // Detekce typu streamu
+    if (streamUrl.includes('.m3u8')) {
+        // HLS stream
+        if (Hls.isSupported()) {
+            hls = new Hls({
+                enableWorker: true,
+                lowLatencyMode: false,
+                backBufferLength: 90
             });
-        });
-
+            hls.loadSource(streamUrl);
+            hls.attachMedia(video);
+            
+            hls.on(Hls.Events.MANIFEST_PARSED, function() {
+                video.play().catch(error => {
+                    console.error('Chyba při přehrávání:', error);
+                    alert(`Nelze přehrát: ${channelName}`);
+                });
+            });
+            
+            hls.on(Hls.Events.ERROR, function(event, data) {
+                if (data.fatal) {
+                    console.error('Kritická chyba HLS:', data);
+                    switch(data.type) {
+                        case Hls.ErrorTypes.NETWORK_ERROR:
+                            console.error('Síťová chyba');
+                            hls.startLoad();
+                            break;
+                        case Hls.ErrorTypes.MEDIA_ERROR:
+                            console.error('Chyba média');
+                            hls.recoverMediaError();
+                            break;
+                        default:
+                            hls.destroy();
+                            alert(`Nelze přehrát stream: ${channelName}`);
+                            break;
+                    }
+                }
+            });
+        } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+            // Nativní HLS podpora (Safari)
+            video.src = streamUrl;
+            video.play().catch(error => {
+                console.error('Chyba při přehrávání:', error);
+                alert(`Nelze přehrát: ${channelName}`);
+            });
+        } else {
+            alert('Váš prohlížeč nepodporuje přehrávání HLS streamů');
+        }
     } else {
-        // Natvní přehrávání (pro MP4/MKV z Pixeldrain/jinde)
-        video.src = finalUrl;
-        
-        // Musíme video načíst před spuštěním přehrávání
-        video.load(); 
-
+        // Běžný video stream (MP4, atd.)
+        video.src = streamUrl;
         video.play().catch(error => {
-            console.error('Chyba při nativním přehrávání:', error);
-            // Zobrazíme upozornění na Autoplay
-            alert(`Nelze přehrát: ${channelName}. Chyba Autoplay: Klikni prosím ještě jednou.`);
+            console.error('Chyba při přehrávání:', error);
+            alert(`Nelze přehrát: ${channelName}`);
         });
     }
     
     resetControlsTimer();
 }
-
 
 function setupCustomControls() {
     const video = document.getElementById('video');
@@ -293,24 +289,21 @@ function setupCustomControls() {
     const closePlayerBtn = document.querySelector('.close-player-btn');
 
     let isDragging = false;
-    
-    // Resetování timeoutu ovládacích prvků
-    function resetControlsTimer() {
-        clearTimeout(controlsTimeout);
-        controlsTimeout = setTimeout(hideControls, 3000);
-    }
-    
-    // Zobrazení ovládacích prvků
+
     function showControls() {
         customControls.classList.remove('controls-hidden');
         resetControlsTimer();
     }
-    
-    // Skrytí ovládacích prvků
+
     function hideControls() {
         if (!video.paused) {
             customControls.classList.add('controls-hidden');
         }
+    }
+
+    function resetControlsTimer() {
+        clearTimeout(controlsTimeout);
+        controlsTimeout = setTimeout(hideControls, 3000);
     }
 
     videoWrapper.addEventListener('click', function(e) {
@@ -320,26 +313,10 @@ function setupCustomControls() {
     });
 
     videoWrapper.addEventListener('mousemove', showControls);
-    
-    document.addEventListener('fullscreenchange', function() {
-        if (!document.fullscreenElement) {
-            showControls(); 
-        }
-    });
-
-    document.addEventListener('webkitfullscreenchange', function() {
-        if (!document.webkitFullscreenElement) {
-            showControls();
-        }
-    });
-
 
     function togglePlayPause() {
         if (video.paused) {
-            // Zkusíme spustit. Pokud se jedná o chybu Autoplay, druhé kliknutí by mělo pomoci.
-            video.play().catch(error => {
-                 console.error('Chyba Autoplay po kliknutí:', error);
-            });
+            video.play();
             playPauseBtn.textContent = '⏸️';
         } else {
             video.pause();
@@ -352,7 +329,7 @@ function setupCustomControls() {
     video.addEventListener('click', togglePlayPause);
 
     function updateProgress(e) {
-        if (!isDragging || isNaN(video.duration)) return;
+        if (!isDragging) return;
         const rect = progressContainer.getBoundingClientRect();
         const percent = (e.clientX - rect.left) / rect.width;
         video.currentTime = percent * video.duration;
@@ -375,16 +352,12 @@ function setupCustomControls() {
     progressContainer.addEventListener('click', (e) => {
         const rect = progressContainer.getBoundingClientRect();
         const percent = (e.clientX - rect.left) / rect.width;
-        if (!isNaN(video.duration)) {
-             video.currentTime = percent * video.duration;
-        }
+        video.currentTime = percent * video.duration;
         showControls();
     });
 
     video.addEventListener('timeupdate', () => {
-        if (isNaN(video.duration)) return; // Ignorujeme, dokud není načtena délka
-
-        if (!isDragging) {
+        if (!isDragging && video.duration) {
             const progress = (video.currentTime / video.duration) * 100;
             progressBar.style.width = `${progress}%`;
         }
@@ -400,7 +373,7 @@ function setupCustomControls() {
         showControls();
     });
 
-    let speedIndex = 2; // Výchozí rychlost 1x (index 2 v poli speeds)
+    let speedIndex = 2;
     const speeds = [0.5, 0.75, 1, 1.25, 1.5, 2];
     speedBtn.addEventListener('click', () => {
         speedIndex = (speedIndex + 1) % speeds.length;
@@ -426,10 +399,18 @@ function setupCustomControls() {
     video.addEventListener('ended', () => {
         playPauseBtn.textContent = '▶';
     });
+
+    video.addEventListener('play', () => {
+        playPauseBtn.textContent = '⏸️';
+    });
+
+    video.addEventListener('pause', () => {
+        playPauseBtn.textContent = '▶';
+    });
 }
 
 function formatTime(seconds) {
-    if (isNaN(seconds) || seconds < 0) return '0:00';
+    if (isNaN(seconds) || !isFinite(seconds)) return '0:00';
     const minutes = Math.floor(seconds / 60);
     const secs = Math.floor(seconds % 60);
     return `${minutes}:${secs.toString().padStart(2, '0')}`;
@@ -439,14 +420,14 @@ function hidePlayer() {
     const videoPlayer = document.getElementById('video-player');
     const video = document.getElementById('video');
     
-    // ZNIČENÍ HLS INSTANCE
-    if (video.hlsInstance) {
-        video.hlsInstance.destroy();
-        video.hlsInstance = null;
+    video.pause();
+    video.src = '';
+    
+    if (hls) {
+        hls.destroy();
+        hls = null;
     }
     
-    video.pause();
-    video.src = ''; 
     videoPlayer.className = 'video-player-hidden';
     document.body.style.overflow = 'auto';
     clearTimeout(controlsTimeout);
@@ -499,11 +480,10 @@ function setupSearchToggle() {
             channel.name.toLowerCase().includes(searchTerm)
         );
         
-        const movieContainer = document.getElementById('movie-container');
-        
         if (filteredMovies.length > 0) {
             displayMovies(filteredMovies);
         } else {
+            const movieContainer = document.getElementById('movie-container');
             movieContainer.innerHTML = '<div class="loading">Žádné filmy nebyly nalezeny</div>';
         }
     });
@@ -512,7 +492,6 @@ function setupSearchToggle() {
 const playBtn = document.querySelector('.play-btn');
 playBtn.addEventListener('click', () => {
     if (currentHeroMovie && currentHeroMovie.streamUrl) {
-        // Použijeme playChannel pro spuštění i doporučeného filmu
         playChannel(currentHeroMovie.streamUrl, currentHeroMovie.title);
     } else {
         alert('Pro tento film není dostupný stream.');

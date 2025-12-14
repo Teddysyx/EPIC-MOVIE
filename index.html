@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>EPIC MOVIE</title>
     <link rel="stylesheet" href="style.css">
+    <!-- HLS.js knihovna pro přehrávání IPTV streamů -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/hls.js/1.5.8/hls.min.js"></script>
 </head>
 <body>
     <nav class="navbar">
@@ -55,7 +57,7 @@
     <div id="video-player" class="video-player-hidden">
         <div class="video-container">
             <div class="video-wrapper">
-                <video id="video"></video>
+                <video id="video" crossorigin="anonymous"></video>
                 <div class="custom-controls">
                     <div class="progress-bar">
                         <div class="progress"></div>
@@ -79,7 +81,6 @@
         </div>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
     <script src="script.js"></script>
 </body>
 </html>
