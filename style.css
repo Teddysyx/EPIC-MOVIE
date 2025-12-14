@@ -324,6 +324,35 @@ body {
     display: block;
 }
 
+.big-play-button {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 80px;
+    height: 80px;
+    background: rgba(229, 9, 20, 0.9);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 32px;
+    color: white;
+    cursor: pointer;
+    z-index: 100;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+}
+
+.big-play-button:hover {
+    background: rgba(229, 9, 20, 1);
+    transform: translate(-50%, -50%) scale(1.1);
+}
+
+.big-play-button:active {
+    transform: translate(-50%, -50%) scale(0.95);
+}
+
 .custom-controls {
     position: absolute;
     bottom: 0;
@@ -534,6 +563,12 @@ body {
         width: 95%;
     }
     
+    .big-play-button {
+        width: 60px;
+        height: 60px;
+        font-size: 24px;
+    }
+    
     .custom-controls {
         padding: 15px;
     }
@@ -585,5 +620,11 @@ body {
     
     #search-input {
         font-size: 1rem;
+    }
+    
+    .big-play-button {
+        width: 50px;
+        height: 50px;
+        font-size: 20px;
     }
 }
