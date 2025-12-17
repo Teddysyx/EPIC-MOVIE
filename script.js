@@ -343,3 +343,78 @@ function hidePlayer() {
     
     video.pause();
     video.src = '';
+    
+    if (hls) {
+        hls.destroy();
+        hls = null;
+    }
+    
+    videoPlayer.className = 'video-player-hidden';
+    document.body.style.overflow = 'auto';
+    clearTimeout(controlsTimeout);
+}
+
+function setupSearchToggle() {
+    const searchToggleBtn = document.querySelector('.search-toggle-btn');
+    const navSearchOverlay = document.querySelector('.nav-search-overlay');
+    const searchCloseBtn = document.querySelector('.search-close-btn');
+    const searchInput = document.getElementById('search-input');
+    
+    function openSearch() {
+        navSearchOverlay.classList.add('active');
+        setTimeout(() => {
+            searchInput.focus();
+        }, 300);
+    }
+    
+    function closeSearch() {
+        navSearchOverlay.classList.remove('active');
+        searchInput.value = '';
+        displayMovies(allChannels);
+    }
+    
+    searchToggleBtn.addEventListener('click', openSearch);
+    
+    searchCloseBtn.addEventListener('click', closeSearch);
+    
+    document.addEventListener('keyup', function(e) {
+        if (e.key === 'Escape') {
+            closeSearch();
+        }
+    });
+    
+    navSearchOverlay.addEventListener('click', function(e) {
+        if (e.target === navSearchOverlay) {
+            closeSearch();
+        }
+    });
+    
+    searchInput.addEventListener('input', function() {
+        const searchTerm = searchInput.value.toLowerCase().trim();
+        
+        if (searchTerm === '') {
+            displayMovies(allChannels);
+            return;
+        }
+        
+        const filteredMovies = allChannels.filter(channel => 
+            channel.name.toLowerCase().includes(searchTerm)
+        );
+        
+        if (filteredMovies.length > 0) {
+            displayMovies(filteredMovies);
+        } else {
+            const movieContainer = document.getElementById('movie-container');
+            movieContainer.innerHTML = '<div class="loading">Žádné filmy nebyly nalezeny</div>';
+        }
+    });
+}
+
+const playBtn = document.querySelector('.play-btn');
+if (playBtn) {
+    playBtn.addEventListener('click', () => {
+        if (currentHeroMovie && currentHeroMovie.streamUrl) {
+            playChannel(currentHeroMovie.streamUrl, currentHeroMovie.title);
+        }
+    });
+}
