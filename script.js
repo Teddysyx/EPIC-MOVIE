@@ -1,6 +1,7 @@
 let allChannels = [];
 let currentHeroMovie = null;
 let controlsTimeout;
+let hls = null;
 
 const featuredMovies = [
     {
@@ -132,7 +133,7 @@ allChannels = [
     {name: "Velká šestka", logo: "https://image.pmgstatic.com/cache/resized/w420/files/images/film/posters/159/369/159369244_9e45b8.jpg", url: "https://pixeldrain.com/api/file/EbTk6Ys5"},
     {name: "Toy Story", logo: "https://m.media-amazon.com/images/I/71aBLaC4TzL.jpg", url: "https://pixeldrain.com/api/file/ja9s3bEW"},
     {name: "Toy Story 2", logo: "https://i.ebayimg.com/images/g/Pl0AAOSwd4tT-~pC/s-l1200.jpg", url: "https://pixeldrain.com/api/file/vpbSjJs5"},
-    {name: "Toy Story 3", logo: "https://resizing.flixster.com/F4qdcvTFMYoEmut3WmhBVmYeSVI=/ems.cHJkLWVtcy1hc3NldHMvbW92aWVzLzlhZDg3ZjU1LTk7ZTAtNDMzMC04MzliLTNiMzE5YmQ3ZDQ4OC53ZWJw", url: "https://pixeldrain.com/api/file/rc8Xb5ML"},
+    {name: "Toy Story 3", logo: "https://resizing.flixster.com/F4qdcvTFMYoEmut3WmhBVmYeSVI=/ems.cHJkLWVtcy1hc3NldHMvbW92aWVzLzlhZDg3ZjU1LTk3ZTAtNDMzMC04MzliLTNiMzE5YmQ3ZDQ4OC53ZWJw", url: "https://pixeldrain.com/api/file/rc8Xb5ML"},
     {name: "Toy Story 4", logo: "https://www.origosky.cz/fotky89342/fotos/_vyr_2223_plakat-toy-story.jpg", url: "https://pixeldrain.com/api/file/VMV2iEhD"},
     {name: "Auta", logo: "https://image.pmgstatic.com/cache/resized/w420/files/images/film/posters/158/597/158597606_279039.jpg", url: "https://pixeldrain.com/api/file/tpv5r3qJ"},
     {name: "Auta 2", logo: "https://www.zona-zabavy.cz/i/?i=0908359_03.jpg&w=325&h=483", url: "https://pixeldrain.com/api/file/YaU4YgEg"},
@@ -246,7 +247,7 @@ document.addEventListener('DOMContentLoaded', function() {
     setupCustomControls();
     setupSearchToggle();
     
-    // Přidat event listener na hero play button
+    // Hero play button
     const playBtn = document.querySelector('.play-btn');
     if (playBtn) {
         playBtn.addEventListener('click', () => {
@@ -289,83 +290,53 @@ function setRandomHeroMovie() {
 
 function displayMovies(channels) {
     const movieContainer = document.getElementById('movie-container');
-    if (!movieContainer) {
-        console.error('Movie container not found!');
-        return;
-    }
-    
     movieContainer.innerHTML = '';
-
-    if (!channels || channels.length === 0) {
-        movieContainer.innerHTML = '<div class="loading">Žádné filmy k dispozici</div>';
-        return;
-    }
 
     channels.forEach(channel => {
         const movieElement = document.createElement('div');
         movieElement.className = 'movie-item';
+        movieElement.innerHTML = `
+            <img src="${channel.logo}" alt="${channel.name}" class="movie-poster" 
+                 onerror="this.src='https://via.placeholder.com/200x300/333333/666666?text=EPIC+MOVIE'">
+        `;
         
-        // Vytvořit obrázek s fallbackem
-        const img = document.createElement('img');
-        img.src = channel.logo;
-        img.alt = channel.name;
-        img.className = 'movie-poster';
-        img.onerror = function() {
-            this.src = 'https://via.placeholder.com/200x300/333333/666666?text=EPIC+MOVIE';
-        };
-        
-        movieElement.appendChild(img);
         movieElement.addEventListener('click', () => playChannel(channel.url, channel.name));
         movieContainer.appendChild(movieElement);
     });
 }
 
 function playChannel(streamUrl, channelName) {
-    console.log('Attempting to play:', streamUrl, channelName);
-    
     const videoPlayer = document.getElementById('video-player');
-    if (!videoPlayer) {
-        console.error('Video player not found!');
-        return;
-    }
+    const videoWrapper = document.querySelector('.video-wrapper');
+    const video = document.getElementById('video');
     
-    // Zobrazit přehrávač
     videoPlayer.className = 'video-player-visible';
     document.body.style.overflow = 'hidden';
     
-    // Získat video wrapper
-    const videoWrapper = document.querySelector('.video-wrapper');
-    if (!videoWrapper) {
-        console.error('Video wrapper not found!');
-        return;
+    // Vyčistit video a vytvořit tvůj hotlink formát
+    video.innerHTML = '';
+    
+    // Vytvořit source element podle tvého hotlink formátu
+    const source = document.createElement('source');
+    source.src = streamUrl;
+    source.type = 'video/mp4';
+    
+    // Přidat source do video elementu
+    video.appendChild(source);
+    
+    // Načíst video
+    video.load();
+    
+    // Pokusit se přehrát
+    const playPromise = video.play();
+    
+    if (playPromise !== undefined) {
+        playPromise.catch(error => {
+            console.log('Auto-play failed:', error);
+            // Zobrazit ovládací prvky, když autoplay selže
+            video.controls = true;
+        });
     }
-    
-    // Vyčistit video wrapper
-    videoWrapper.innerHTML = '';
-    
-    // Vytvořit iframe pro přehrávání
-    const iframe = document.createElement('iframe');
-    
-    // Použít přímý download link z Pixeldrain
-    const videoUrl = streamUrl + (streamUrl.includes('?') ? '&' : '?') + 'download';
-    
-    iframe.src = videoUrl;
-    iframe.style.width = '100%';
-    iframe.style.height = '100%';
-    iframe.style.border = 'none';
-    iframe.allow = 'autoplay; fullscreen';
-    iframe.allowFullscreen = true;
-    iframe.title = channelName;
-    
-    // Přidat iframe do wrapperu
-    videoWrapper.appendChild(iframe);
-    
-    // Přidat tlačítko pro zavření
-    const closeBtn = document.createElement('button');
-    closeBtn.className = 'close-player-btn-simple';
-    closeBtn.textContent = '✕ Zavřít';
-    closeBtn.onclick = hidePlayer;
-    videoWrapper.appendChild(closeBtn);
 }
 
 function setupCustomControls() {
@@ -377,11 +348,12 @@ function setupCustomControls() {
 
 function hidePlayer() {
     const videoPlayer = document.getElementById('video-player');
-    const videoWrapper = document.querySelector('.video-wrapper');
+    const video = document.getElementById('video');
     
-    if (videoWrapper) {
-        videoWrapper.innerHTML = '';
-    }
+    video.pause();
+    video.currentTime = 0;
+    video.innerHTML = '';
+    video.controls = false;
     
     videoPlayer.className = 'video-player-hidden';
     document.body.style.overflow = 'auto';
@@ -392,11 +364,6 @@ function setupSearchToggle() {
     const navSearchOverlay = document.querySelector('.nav-search-overlay');
     const searchCloseBtn = document.querySelector('.search-close-btn');
     const searchInput = document.getElementById('search-input');
-    
-    if (!searchToggleBtn || !navSearchOverlay || !searchCloseBtn || !searchInput) {
-        console.error('Search elements not found!');
-        return;
-    }
     
     function openSearch() {
         navSearchOverlay.classList.add('active');
