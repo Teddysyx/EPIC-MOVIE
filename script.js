@@ -297,13 +297,31 @@ function displayMovies(channels) {
 
 function playChannel(streamUrl, channelName) {
     const videoPlayer = document.getElementById('video-player');
-    const iframe = document.getElementById('video-iframe');
+    const video = document.getElementById('video');
     
     videoPlayer.className = 'video-player-visible';
     document.body.style.overflow = 'hidden';
     
-    const videoId = streamUrl.split('/').pop();
-    iframe.src = `https://pixeldrain.com/u/${videoId}`;
+    if (hls) {
+        hls.destroy();
+        hls = null;
+    }
+    
+    video.src = streamUrl;
+    video.load();
+    
+    const playPromise = video.play();
+    
+    if (playPromise !== undefined) {
+        playPromise.catch(() => {
+            video.muted = true;
+            video.play().then(() => {
+                setTimeout(() => {
+                    video.muted = false;
+                }, 500);
+            });
+        });
+    }
 }
 
 function setupCustomControls() {
@@ -315,9 +333,10 @@ function setupCustomControls() {
 
 function hidePlayer() {
     const videoPlayer = document.getElementById('video-player');
-    const iframe = document.getElementById('video-iframe');
+    const video = document.getElementById('video');
     
-    iframe.src = '';
+    video.pause();
+    video.src = '';
     
     if (hls) {
         hls.destroy();
