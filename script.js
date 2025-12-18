@@ -216,7 +216,7 @@ allChannels = [
     {name: "Yes man", logo: "https://image.tmdb.org/t/p/original/16zVbgFLTUaUTG1wQHuGjfWNuDM.jpg", url: "https://pixeldrain.com/api/file/HkFtCCT5"},
     {name: "Rocky", logo: "https://image.tmdb.org/t/p/original/wLJ5tnjC2hHwsxbdkkkvOJ8TPRH.jpg", url: "https://pixeldrain.com/api/file/oGG3bBnJ"},
     {name: "Rocky 2", logo: "https://image.tmdb.org/t/p/original/iUjveF2SX2YC1C6qFyIuG0Xds0g.jpg", url: "https://pixeldrain.com/api/file/NS6Uvgsk"},
-    {name: "Rocky 3", logo: "https://image.tmdb.org/t/p/original/iPwA2IhIdN8Uho6QJjGqFpk95NN.jpg", url: "https://pixeldrain.com/api/file/dtB5tLzr"},
+    {name: "Rocky 3", logo: "https://image.tmdb.org/t/p/original/iPwA2IhIdN8Uho6QJjGqFpk95NN.jpg", url: "https://pixeldrain.com/api/file/iPwA2IhIdN8Uho6QJjGqFpk95NN.jpg"},
     {name: "Rocky 4", logo: "https://image.tmdb.org/t/p/original/leEgCoRZm9thg9POMcPV8okmVJq.jpg", url: "https://pixeldrain.com/api/file/fvFKTEYo"},
     {name: "Rocky 5", logo: "https://image.tmdb.org/t/p/original/jUM5XFZbJX4QhKCsLkG7wSdW6hj.jpg", url: "https://pixeldrain.com/api/file/2AGi4ZW5"},
     {name: "Rocky 6", logo: "https://image.tmdb.org/t/p/original/bgheMOLFVkpiZ3KhG3PGrMAPdXn.jpg", url: "https://pixeldrain.com/api/file/43ge2RhB"},
@@ -298,6 +298,7 @@ function displayMovies(channels) {
 function playChannel(streamUrl, channelName) {
     const videoPlayer = document.getElementById('video-player');
     const video = document.getElementById('video');
+    const videoSource = document.getElementById('video-source');
     
     videoPlayer.className = 'video-player-visible';
     document.body.style.overflow = 'hidden';
@@ -307,7 +308,11 @@ function playChannel(streamUrl, channelName) {
         hls = null;
     }
     
-    video.src = streamUrl;
+    // Nastavení typu a zdroje dle tvého požadavku
+    videoSource.src = streamUrl;
+    videoSource.type = "video/mp4";
+    
+    // Nutné pro znovunačtení nového zdroje
     video.load();
     
     const playPromise = video.play();
@@ -334,9 +339,10 @@ function setupCustomControls() {
 function hidePlayer() {
     const videoPlayer = document.getElementById('video-player');
     const video = document.getElementById('video');
+    const videoSource = document.getElementById('video-source');
     
     video.pause();
-    video.src = '';
+    videoSource.src = ''; // Vyčištění zdroje
     
     if (hls) {
         hls.destroy();
